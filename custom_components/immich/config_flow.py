@@ -14,7 +14,21 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
 
-from .const import CONF_WATCHED_ALBUMS, DOMAIN
+from .const import (
+    CONF_WATCHED_ALBUMS,
+    DOMAIN,
+    CONF_CROP_MODE,
+    CONF_IMAGE_SELECTION_MODE,
+    CONF_UPDATE_INTERVAL,
+    CONF_UPDATE_INTERVAL_UNIT,
+    DEFAULT_CROP_MODE,
+    DEFAULT_IMAGE_SELECTION_MODE,
+    DEFAULT_UPDATE_INTERVAL,
+    DEFAULT_UPDATE_INTERVAL_UNIT,
+    CROP_MODES,
+    IMAGE_SELECTION_MODES,
+    UPDATE_INTERVAL_UNITS,
+)
 from .hub import CannotConnect, ImmichHub, InvalidAuth
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,13 +40,8 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     }
 )
 
-
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """Validate the user input allows us to connect.
-
-    Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
-    """
-
+    """Validate the user input allows us to connect."""
     url = url_normalize(data[CONF_HOST])
     api_key = data[CONF_API_KEY]
 
@@ -45,17 +54,15 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     username = user_info["name"]
     clean_hostname = urlparse(url).hostname
 
-    # Return info that you want to store in the config entry.
     return {
         "title": f"{username} @ {clean_hostname}",
         "data": {CONF_HOST: url, CONF_API_KEY: api_key},
     }
 
-
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for immich."""
 
-    VERSION = 1
+    VERSION = 3.0
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -87,7 +94,6 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Create the options flow."""
         return OptionsFlowHandler(config_entry)
 
-
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Immich options flow handler."""
 
@@ -102,7 +108,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        # Get a connection to the hub in order to list the available albums
         url = url_normalize(self.config_entry.data[CONF_HOST])
         api_key = self.config_entry.data[CONF_API_KEY]
         hub = ImmichHub(host=url, api_key=api_key)
@@ -110,26 +115,28 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if not await hub.authenticate():
             raise InvalidAuth
 
-        # Get the list of albums and create a mapping of album id to album name
         albums = await hub.list_all_albums()
         album_map = {album["id"]: album["albumName"] for album in albums}
 
-        # Filter out any album ids that are no longer returned by the API
         current_albums_value = [
             album
             for album in self.config_entry.options.get(CONF_WATCHED_ALBUMS, [])
             if album in album_map
         ]
 
-        # Allow the user to select which albums they want to create entities for
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_WATCHED_ALBUMS,
-                        default=current_albums_value,
-                    ): cv.multi_select(album_map)
-                }
-            ),
+        current_crop_mode = self.config_entry.options.get(CONF_CROP_MODE, DEFAULT_CROP_MODE)
+        current_image_selection_mode = self.config_entry.options.get(CONF_IMAGE_SELECTION_MODE, DEFAULT_IMAGE_SELECTION_MODE)
+        current_update_interval = self.config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+        current_update_interval_unit = self.config_entry.options.get(CONF_UPDATE_INTERVAL_UNIT, DEFAULT_UPDATE_INTERVAL_UNIT)
+
+        options_schema = vol.Schema(
+            {
+                vol.Required(CONF_CROP_MODE, default=current_crop_mode): vol.In(CROP_MODES),
+                vol.Required(CONF_IMAGE_SELECTION_MODE, default=current_image_selection_mode): vol.In(IMAGE_SELECTION_MODES),
+                vol.Required(CONF_UPDATE_INTERVAL, default=current_update_interval): vol.Coerce(int),
+                vol.Required(CONF_UPDATE_INTERVAL_UNIT, default=current_update_interval_unit): vol.In(UPDATE_INTERVAL_UNITS),
+                vol.Required(CONF_WATCHED_ALBUMS, default=current_albums_value): cv.multi_select(album_map),
+            }
         )
+
+        return self.async_show_form(step_id="init", data_schema=options_schema)
