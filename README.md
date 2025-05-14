@@ -34,6 +34,8 @@ The original was not compatible with file formats like HEIC, this new version us
 
 This custom integration for Home Assistant allows you to display random pictures from your Immich instance right inside your dashboards.
 
+# Original README
+
 ### What is Immich?
 
 Immich is a "high performance self-hosted photo and video backup solution".  
