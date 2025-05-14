@@ -16,7 +16,7 @@ Home Assistant provides "open source home automation that puts local control and
 
 Install this component _via_ [HACS](https://hacs.xyz).
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?repository=immich-home-assistant&category=Integration&owner=outadoc)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?repository=immich-home-assistant&category=Integration&owner=jianyu-li)
 
 Restart Home Assistant once the integration has been installed.
 
