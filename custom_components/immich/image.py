@@ -1,27 +1,26 @@
-"""Image device for Immich integration."""
-from __future__ import annotations
-
-import asyncio
 from datetime import datetime, timedelta
 import logging
+from typing import Any
 import random
+from io import BytesIO
 
 from homeassistant.components.image import ImageEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_time_interval
 
-from .const import CONF_WATCHED_ALBUMS
+from .const import (
+    CONF_WATCHED_ALBUMS, DOMAIN, CONF_CROP_MODE, CONF_IMAGE_SELECTION_MODE,
+    CONF_UPDATE_INTERVAL, CONF_UPDATE_INTERVAL_UNIT,
+    DEFAULT_CROP_MODE, DEFAULT_IMAGE_SELECTION_MODE,
+    DEFAULT_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL_UNIT
+)
 from .hub import ImmichHub
-
-SCAN_INTERVAL = timedelta(minutes=5)
-
-# How often to refresh the list of available asset IDs
-_ID_LIST_REFRESH_INTERVAL = timedelta(hours=12)
+from .coordinator import process_images_for_slideshow
 
 _LOGGER = logging.getLogger(__name__)
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -29,149 +28,182 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Immich image platform."""
-
     hub = ImmichHub(
         host=config_entry.data[CONF_HOST], api_key=config_entry.data[CONF_API_KEY]
     )
 
-    # Create entity for random favorite image
-    async_add_entities([ImmichImageFavorite(hass, hub)])
+    update_interval = config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
+    update_interval_unit = config_entry.options.get(CONF_UPDATE_INTERVAL_UNIT, DEFAULT_UPDATE_INTERVAL_UNIT)
+    
+    if update_interval_unit == "minutes":
+        update_interval *= 60  # Convert minutes to seconds
+    
+    update_interval = timedelta(seconds=update_interval)
+    _LOGGER.debug(f"Update interval set to {update_interval}")
 
-    # Create entities for random image from each watched album
+    async_add_entities([ImmichImageFavorite(hass, hub, config_entry, update_interval)])
+
     watched_albums = config_entry.options.get(CONF_WATCHED_ALBUMS, [])
     async_add_entities(
         [
             ImmichImageAlbum(
-                hass, hub, album_id=album["id"], album_name=album["albumName"]
+                hass, hub, config_entry, album_id=album["id"], album_name=album["albumName"], update_interval=update_interval
             )
             for album in await hub.list_all_albums()
             if album["id"] in watched_albums
         ]
     )
 
-    config_entry.async_on_unload(config_entry.add_update_listener(update_listener))
-
-
-async def update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
-    """Handle options updates."""
-    await hass.config_entries.async_reload(config_entry.entry_id)
-
-
 class BaseImmichImage(ImageEntity):
-    """Base image entity for Immich. Subclasses will define where the random image comes from (e.g. favorite images, by album ID,..)."""
+    """Base image entity for Immich."""
 
     _attr_has_entity_name = True
+    _attr_should_poll = False
 
-    # We want to get a new image every so often, as defined by the refresh interval
-    _attr_should_poll = True
-
-    _current_image_bytes: bytes | None = None
-    _cached_available_asset_ids: list[str] | None = None
-    _available_asset_ids_last_updated: datetime | None = None
-
-    def __init__(self, hass: HomeAssistant, hub: ImmichHub) -> None:
+    def __init__(self, hass: HomeAssistant, hub: ImmichHub, config_entry: ConfigEntry, update_interval: timedelta) -> None:
         """Initialize the Immich image entity."""
         super().__init__(hass=hass, verify_ssl=True)
         self.hub = hub
         self.hass = hass
-
+        self.config_entry = config_entry
+        self.update_interval = update_interval
+        self._current_image_bytes: bytes | None = None
+        self._cached_available_asset_ids: list[str] | None = None
+        self._available_asset_ids_last_updated: datetime | None = None
         self._attr_extra_state_attributes = {}
+        self._unsub_interval = None
 
-    async def async_update(self) -> None:
-        """Force a refresh of the image."""
+    async def async_added_to_hass(self) -> None:
+        """Set up a timer to refresh the image periodically."""
+        await super().async_added_to_hass()
+        _LOGGER.debug(f"Setting up image refresh timer with interval {self.update_interval}")
+        self._unsub_interval = async_track_time_interval(
+            self.hass, self.async_update_image, self.update_interval
+        )
+        # Trigger an immediate update
+        await self.async_update_image()        
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Cancel the timer when the entity is removed."""
+        if self._unsub_interval:
+            self._unsub_interval()
+        await super().async_will_remove_from_hass()
+
+    async def async_update_image(self, now: datetime | None = None) -> None:
+        """Update the image."""
+        _LOGGER.debug(f"Updating image at {datetime.now()}")
         await self._load_and_cache_next_image()
+        self._attr_image_last_updated = datetime.now()
+        self.async_write_ha_state()
+        # Force Home Assistant to request the new image
+        await self.async_update_ha_state()
 
     async def async_image(self) -> bytes | None:
-        """Return the current image. If no image is available, load and cache the image."""
-        if not self._current_image_bytes:
+        """Return bytes of image."""
+        if self._current_image_bytes is None:
             await self._load_and_cache_next_image()
-
         return self._current_image_bytes
 
     async def _refresh_available_asset_ids(self) -> list[str] | None:
         """Refresh the list of available asset IDs."""
         raise NotImplementedError
 
-    async def _get_next_asset_id(self) -> str | None:
-        """Get the asset id of the next image we want to display."""
+    async def _get_next_asset_ids(self) -> list[str] | None:
+        """Get the asset ids of the next images we want to display."""
         if (
-            not self._available_asset_ids_last_updated
-            or (datetime.now() - self._available_asset_ids_last_updated)
-            > _ID_LIST_REFRESH_INTERVAL
+            self._cached_available_asset_ids is None
+            or self._available_asset_ids_last_updated is None
+            or (datetime.now() - self._available_asset_ids_last_updated) > timedelta(hours=1)
         ):
-            # If we don't have any available asset IDs yet, or the list is stale, refresh it
-            _LOGGER.debug("Refreshing available asset IDs")
             self._cached_available_asset_ids = await self._refresh_available_asset_ids()
             self._available_asset_ids_last_updated = datetime.now()
 
         if not self._cached_available_asset_ids:
-            # If we still don't have any available asset IDs, that's a problem
             _LOGGER.error("No assets are available")
             return None
 
-        # Select random item in list
-        random_asset = random.choice(self._cached_available_asset_ids)
+        image_selection_mode = self.config_entry.options.get(CONF_IMAGE_SELECTION_MODE, DEFAULT_IMAGE_SELECTION_MODE)
+        crop_mode = self.config_entry.options.get(CONF_CROP_MODE, DEFAULT_CROP_MODE)
 
-        return random_asset
+        num_images = 2 if crop_mode == "Combine images" else 1
+
+        if image_selection_mode == "Random":
+            return random.sample(self._cached_available_asset_ids, num_images)
+        else:  # Sequential
+            start_index = self._attr_extra_state_attributes.get("last_index", -1) + 1
+            selected_ids = self._cached_available_asset_ids[start_index:start_index + num_images]
+            if len(selected_ids) < num_images:
+                selected_ids += self._cached_available_asset_ids[:num_images - len(selected_ids)]
+            self._attr_extra_state_attributes["last_index"] = (start_index + num_images - 1) % len(self._cached_available_asset_ids)
+            return selected_ids
 
     async def _load_and_cache_next_image(self) -> None:
-        """Download and cache the image."""
-        asset_bytes = None
+        """Download, process, and cache the image."""
+        asset_ids = await self._get_next_asset_ids()
+        _LOGGER.debug(f"Got asset IDs: {asset_ids}")
+        if not asset_ids:
+            _LOGGER.warning("No asset IDs available")
+            return
 
-        while not asset_bytes:
-            asset_id = await self._get_next_asset_id()
-
-            if not asset_id:
-                return
-
+        asset_bytes_list = []
+        for asset_id in asset_ids:
             asset_bytes = await self.hub.download_asset(asset_id)
+            if asset_bytes:
+                asset_bytes_list.append(asset_bytes)
+            else:
+                _LOGGER.warning(f"Failed to download asset with ID: {asset_id}")
 
-            if not asset_bytes:
-                await asyncio.sleep(1)
-                continue
+        if not asset_bytes_list:
+            _LOGGER.error("Failed to download any images")
+            return
 
-            asset_info = await self.hub.get_asset_info(asset_id)
+        _LOGGER.debug(f"Processing {len(asset_bytes_list)} images")
+        processed_image, is_combined = process_images_for_slideshow(
+            asset_bytes_list, 
+            2048, 
+            1536, 
+            self.config_entry.options.get(CONF_CROP_MODE, DEFAULT_CROP_MODE),
+            self.config_entry.options.get(CONF_IMAGE_SELECTION_MODE, DEFAULT_IMAGE_SELECTION_MODE)
+        )
+        
+        if processed_image is None:
+            _LOGGER.info("No image to display at this time (waiting for another portrait image)")
+            return
 
-            self._attr_extra_state_attributes["media_filename"] = (
-                asset_info.get("originalFileName") or ""
-            )
-            self._attr_extra_state_attributes["media_exif"] = (
-                asset_info.get("exifInfo") or ""
-            )
-            self._attr_extra_state_attributes["media_localdatetime"] = (
-                asset_info.get("localDateTime") or ""
-            )
+        # Convert to RGB if the image is in RGBA mode
+        if processed_image.mode == 'RGBA':
+            processed_image = processed_image.convert('RGB')        
 
-            self._current_image_bytes = asset_bytes
-            self._attr_image_last_updated = datetime.now()
-            self.async_write_ha_state()
+        with BytesIO() as output:
+            processed_image.save(output, format="JPEG", quality=95, optimize=True)
+            self._current_image_bytes = output.getvalue()
 
+        _LOGGER.debug(f"Image updated, size: {len(self._current_image_bytes)} bytes, Combined: {is_combined}")
+        self._attr_image_last_updated = datetime.now()
 
 class ImmichImageFavorite(BaseImmichImage):
     """Image entity for Immich that displays a random image from the user's favorites."""
 
-    _attr_unique_id = "favorite_image"
-    _attr_name = "Immich: Random favorite image"
+    def __init__(self, hass: HomeAssistant, hub: ImmichHub, config_entry: ConfigEntry, update_interval: timedelta) -> None:
+        """Initialize the Immich image entity."""
+        super().__init__(hass, hub, config_entry, update_interval)
+        self._attr_unique_id = f"{config_entry.entry_id}_favorite_image"
+        self._attr_name = "Immich: Random favorite image"
 
     async def _refresh_available_asset_ids(self) -> list[str] | None:
         """Refresh the list of available asset IDs."""
         return [image["id"] for image in await self.hub.list_favorite_images()]
 
-
 class ImmichImageAlbum(BaseImmichImage):
     """Image entity for Immich that displays a random image from a specific album."""
 
-    def __init__(
-        self, hass: HomeAssistant, hub: ImmichHub, album_id: str, album_name: str
-    ) -> None:
+    def __init__(self, hass: HomeAssistant, hub: ImmichHub, config_entry: ConfigEntry, album_id: str, album_name: str, update_interval: timedelta) -> None:
         """Initialize the Immich image entity."""
-        super().__init__(hass, hub)
+        super().__init__(hass, hub, config_entry, update_interval)
         self._album_id = album_id
-        self._attr_unique_id = album_id
+        self._attr_unique_id = f"{config_entry.entry_id}_{album_id}"
         self._attr_name = f"Immich: {album_name}"
 
     async def _refresh_available_asset_ids(self) -> list[str] | None:
         """Refresh the list of available asset IDs."""
-        return [
-            image["id"] for image in await self.hub.list_album_images(self._album_id)
-        ]
+        return [image["id"] for image in await self.hub.list_album_images(self._album_id)]
