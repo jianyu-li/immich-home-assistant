@@ -10,6 +10,6 @@
   "issue_tracker": "https://github.com/jianyu-li/immich-home-assistant/issues",
   "requirements": ["url-normalize==1.4.3"],
   "ssdp": [],
-  "version": "0.2.0",
+  "version": "0.3.0",
   "zeroconf": []
 }
