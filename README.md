@@ -5,6 +5,7 @@ A fork from [immich-home-assistant](https://github.com/outadoc/immich-home-assis
 # Updates from original
 
 ### 🖼️ Crop Mode Options
+Thanks to [@anon666333](https://github.com/anon666333) for their contributions!
 
 The crop_mode option controls how images are displayed on your screen, especially when dealing with mismatched orientations. Choose the mode that best suits your display and aesthetic preferences:
 
@@ -27,6 +28,8 @@ The crop_mode option controls how images are displayed on your screen, especiall
 	•	Best for: Preserving full image content, galleries, or artistic displays.
 
 ### Better Compatibility
+Thanks to [@9zigen](https://github.com/9zigen) for their contributions!
+
 The original was not compatible with file formats like HEIC, this new version uses the thumbnail preview to load the picture instead of the original photo file. 
 
 This custom integration for Home Assistant allows you to display random pictures from your Immich instance right inside your dashboards.
