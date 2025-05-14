@@ -1,5 +1,7 @@
 # Immich × Home Assistant ![GitHub Release](https://img.shields.io/github/v/release/outadoc/immich-home-assistant) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/outadoc/immich-home-assistant/validate.yml)
 
+A fork from [immich-home-assistant](https://github.com/outadoc/immich-home-assistant) that incorporates some of the pull requests since the development is a little stale. 
+
 This custom integration for Home Assistant allows you to display random pictures from your Immich instance right inside your dashboards.
 
 ### What is Immich?
