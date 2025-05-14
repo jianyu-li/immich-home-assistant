@@ -91,7 +91,7 @@ class ImmichHub:
         """Download the asset."""
         try:
             async with aiohttp.ClientSession() as session:
-                url = urljoin(self.host, f"/api/assets/{asset_id}/original")
+                url = urljoin(self.host, f"/api/assets/{asset_id}/thumbnail?size=preview")
                 headers = {_HEADER_API_KEY: self.api_key}
 
                 async with session.get(url=url, headers=headers) as response:
