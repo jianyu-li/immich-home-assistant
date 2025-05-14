@@ -2,6 +2,33 @@
 
 A fork from [immich-home-assistant](https://github.com/outadoc/immich-home-assistant) that incorporates some of the pull requests since the development is a little stale. 
 
+# Updates from original
+
+### 🖼️ Crop Mode Options
+
+The crop_mode option controls how images are displayed on your screen, especially when dealing with mismatched orientations. Choose the mode that best suits your display and aesthetic preferences:
+
+🔀 Combine images
+	•	Description: Pairs two portrait-oriented images side-by-side on a single canvas, centered vertically.
+	•	Behavior:
+	•	If two portrait images are available, they are combined into one landscape image.
+	•	If only one portrait image is available, it’s held until the next portrait arrives.
+	•	Falls back to a landscape image if no portrait pair is possible.
+	•	Best for: Portrait-heavy albums, maximizing screen space, dynamic pairings.
+
+✂️ Crop single image
+	•	Description: Crops a single image to exactly fill the screen dimensions, possibly trimming edges.
+	•	Behavior: Uses smart cropping (ImageOps.fit) to preserve center content but may cut off sides or top/bottom.
+	•	Best for: Slideshows, digital frames, or dashboards where exact fit matters more than full image preservation.
+
+📏 None
+	•	Description: Resizes the image to fit the screen without cropping.
+	•	Behavior: Entire image is shown using letterboxing or pillarboxing if needed.
+	•	Best for: Preserving full image content, galleries, or artistic displays.
+
+### Better Compatibility
+The original was not compatible with file formats like HEIC, this new version uses the thumbnail preview to load the picture instead of the original photo file. 
+
 This custom integration for Home Assistant allows you to display random pictures from your Immich instance right inside your dashboards.
 
 ### What is Immich?
