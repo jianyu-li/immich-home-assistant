@@ -110,6 +110,7 @@ class ImmichHub:
 
         try:
             async with aiohttp.ClientSession() as session:
+                _LOGGER.info("Downloading uncached asset from Immich: %s", asset_id)
                 url = urljoin(self.host, f"/api/assets/{asset_id}/thumbnail?size={picture_type}")    
                 headers = {_HEADER_API_KEY: self.api_key}
 
@@ -132,11 +133,15 @@ class ImmichHub:
     async def load_cached_asset(self, asset_id) -> bytes | None:
         filename = os.path.join(self.asset_cache_path, f"{asset_id}")
         if os.path.isfile(filename):
-            async with aiofiles.open(filename, "rb") as f:
-                return await f.read()
+            try:
+                async with aiofiles.open(filename, "rb") as f:
+                    _LOGGER.info("Serving asset from cache: %s", asset_id)
+                    return await f.read()
+            except Exception as e:
+                _LOGGER.error("Unable load cached assed: %s %s", asset_id, e)
         return None
 
-    async def cache_album_assets(self, album_assets: list[str]) -> bool:
+    async def cache_album_assets(self, album_assets: list[str]) -> None:
         """Cache album assets."""
 
         if self.cache_assets:
@@ -145,19 +150,29 @@ class ImmichHub:
                 if not os.path.isfile(filename):
                     asset_bytes = await self.download_asset(asset_id)
                     if asset_bytes:
-                        async with aiofiles.open(filename, "wb") as f:
-                            await f.write(asset_bytes)
+                        try:
+                            async with aiofiles.open(filename, "wb") as f:
+                                _LOGGER.info("Caching asset: %s", asset_id)
+                                await f.write(asset_bytes)
+                        except Exception as e:
+                            _LOGGER.error("Unable to cache asset: %s %s", asset_id, e)
 
-    def initialize_asset_cache(self) -> bool:
+    def initialize_asset_cache(self) -> None:
         self.cache_assets = self.config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE)
         self.asset_cache_path = self.hass.config.path('immich_cache')
         
-        shutil.rmtree(self.asset_cache_path, ignore_errors=True)
+        try:
+            shutil.rmtree(self.asset_cache_path)
+            _LOGGER.info("Cleared asset cache")
+        except Exception as e:
+            _LOGGER.error("Unable to clear asset cache directory: %s", e)
 
-        if self.cache_assets:
-            os.makedirs(self.asset_cache_path, exist_ok=True)
-        
-        return True
+            if self.cache_assets:
+                try:
+                    os.makedirs(self.asset_cache_path, exist_ok=True)
+                    _LOGGER.info("Created asset cache directory: ", self.asset_cache_path)
+                except Exception as e:
+                    _LOGGER.error("Unable to create asset cache directory: %s %s", self.asset_cache_path, e)
 
     async def list_favorite_images(self) -> list[dict]:
         """List all favorite images."""
