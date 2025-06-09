@@ -20,11 +20,10 @@ _ALLOWED_MIME_TYPES = ["image/png", "image/jpeg"]
 class ImmichHub:
     """Immich API hub."""
 
-    def __init__(self, hass: HomeAssistant, host: str, api_key: str) -> None:
+    def __init__(self, host: str, api_key: str) -> None:
         """Initialize."""
         self.host = host
         self.api_key = api_key
-        self.hass = hass
 
     async def authenticate(self) -> bool:
         """Test if we can authenticate with the host."""
@@ -114,10 +113,10 @@ class ImmichHub:
             _LOGGER.error("Error connecting to the API: %s", exception)
             raise CannotConnect from exception
 
-    async def cache_album_assets(self, album_assets: list[str]) -> bool:
+    async def cache_album_assets(self, hass, album_assets: list[str]) -> bool:
         """Cache album assets."""
 
-        base_path = os.path.join(self.hass.config.path('immich_cache'), "immich_cache")
+        base_path = os.path.join(hass.config.path('immich_cache'), "immich_cache")
         os.makedirs(base_path, exist_ok=True)
 
         for asset_id in album_assets:

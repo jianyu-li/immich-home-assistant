@@ -30,7 +30,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Immich image platform."""
     hub = ImmichHub(
-        host=config_entry.data[CONF_HOST], hass=hass, api_key=config_entry.data[CONF_API_KEY]
+        host=config_entry.data[CONF_HOST], api_key=config_entry.data[CONF_API_KEY]
     )
 
     update_interval = config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
@@ -210,6 +210,6 @@ class ImmichImageAlbum(BaseImmichImage):
         album_assets = [image["id"] for image in await self.hub.list_album_images(self._album_id)]
 
         if self.config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE):
-            await self.hub.cache_album_assets(album_assets)
+            await self.hub.cache_album_assets(album_assets=album_assets, hass=self.hass)
         
         return album_assets #[image["id"] for image in await self.hub.list_album_images(self._album_id)]
