@@ -117,7 +117,7 @@ class ImmichHub:
     async def cache_album_assets(self, album_assets: list[str]) -> bool:
         """Cache album assets."""
 
-        base_path = os.path.join(self.hass.config.path, "immich_cache")
+        base_path = os.path.join(self.hass.config.path('immich_cache'), "immich_cache")
         os.makedirs(base_path, exist_ok=True)
 
         for asset_id in album_assets:
