@@ -204,7 +204,7 @@ class ImmichImageAlbum(BaseImmichImage):
         self._album_id = album_id
         self._attr_unique_id = f"{config_entry.entry_id}_{album_id}"
         self._attr_name = f"Immich: {album_name}"
-        hub.initialize_asset_cache(hass=self.hass, config_entry=self.config_entry)
+        self.hub.initialize_asset_cache(hass=self.hass, config_entry=self.config_entry)
 
     async def _refresh_available_asset_ids(self) -> list[str] | None:
         """Refresh the list of available asset IDs."""
