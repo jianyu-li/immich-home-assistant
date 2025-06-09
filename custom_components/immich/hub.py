@@ -135,10 +135,10 @@ class ImmichHub:
 
         if self.cache_assets:
             for asset_id in album_assets:
-                asset_bytes = await self.download_asset(asset_id)
-                if asset_bytes:
-                    filename = os.path.join(self.asset_cache_path, f"{asset_id}")  # Optional: content_type prüfen
-                    if not os.path.isfile(filename):
+                filename = os.path.join(self.asset_cache_path, f"{asset_id}")  # Optional: content_type prüfen
+                if not os.path.isfile(filename):
+                    asset_bytes = await self.download_asset(asset_id)
+                    if asset_bytes:
                         async with aiofiles.open(filename, "wb") as f:
                             await f.write(asset_bytes)
 
