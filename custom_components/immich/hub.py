@@ -161,11 +161,12 @@ class ImmichHub:
         self.cache_assets = self.config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE)
         self.asset_cache_path = self.hass.config.path('immich_cache')
         
-        try:
-            shutil.rmtree(self.asset_cache_path)
-            _LOGGER.info("Cleared asset cache")
-        except Exception as e:
-            _LOGGER.error("Unable to clear asset cache directory: %s", e)
+        if os.path.isdir(self.asset_cache_path):
+            try:
+                shutil.rmtree(self.asset_cache_path)
+                _LOGGER.info("Cleared asset cache")
+            except Exception as e:
+                _LOGGER.error("Unable to clear asset cache directory: %s", e)
 
         if self.cache_assets:
             try:
