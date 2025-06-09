@@ -9,6 +9,7 @@ import aiofiles
 import os
 
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.core import HomeAssistant
 
 _HEADER_API_KEY = "x-api-key"
 _LOGGER = logging.getLogger(__name__)
@@ -19,10 +20,11 @@ _ALLOWED_MIME_TYPES = ["image/png", "image/jpeg"]
 class ImmichHub:
     """Immich API hub."""
 
-    def __init__(self, host: str, api_key: str) -> None:
+    def __init__(self, hass: HomeAssistant, host: str, api_key: str) -> None:
         """Initialize."""
         self.host = host
         self.api_key = api_key
+        self.hass = hass
 
     async def authenticate(self) -> bool:
         """Test if we can authenticate with the host."""
