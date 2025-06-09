@@ -167,12 +167,12 @@ class ImmichHub:
         except Exception as e:
             _LOGGER.error("Unable to clear asset cache directory: %s", e)
 
-            if self.cache_assets:
-                try:
-                    os.makedirs(self.asset_cache_path, exist_ok=True)
-                    _LOGGER.info("Created asset cache directory: ", self.asset_cache_path)
-                except Exception as e:
-                    _LOGGER.error("Unable to create asset cache directory: %s %s", self.asset_cache_path, e)
+        if self.cache_assets:
+            try:
+                os.makedirs(self.asset_cache_path, exist_ok=True)
+                _LOGGER.info("Created asset cache directory: ", self.asset_cache_path)
+            except Exception as e:
+                _LOGGER.error("Unable to create asset cache directory: %s %s", self.asset_cache_path, e)
 
     async def list_favorite_images(self) -> list[dict]:
         """List all favorite images."""
