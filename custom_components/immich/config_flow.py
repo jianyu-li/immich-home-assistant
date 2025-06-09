@@ -47,7 +47,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     url = url_normalize(data[CONF_HOST])
     api_key = data[CONF_API_KEY]
 
-    hub = ImmichHub(host=url, api_key=api_key)
+    hub = ImmichHub(host=url, hass=hass, api_key=api_key)
 
     if not await hub.authenticate():
         raise InvalidAuth
