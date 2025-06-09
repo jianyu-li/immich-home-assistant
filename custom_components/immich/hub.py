@@ -7,9 +7,14 @@ from urllib.parse import urljoin
 import aiohttp
 import aiofiles
 import os
+import shutil
 
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.core import HomeAssistant
+
+from .const import (
+    CONF_CACHE_MODE, DEFAULT_CACHE_MODE
+)
 
 _HEADER_API_KEY = "x-api-key"
 _LOGGER = logging.getLogger(__name__)
@@ -92,6 +97,11 @@ class ImmichHub:
 
     async def download_asset(self, asset_id: str) -> bytes | None:
         """Download the asset."""
+
+        asset_bytes = await self.load_cached_asset(asset_id)
+        if asset_bytes:
+            return asset_bytes
+        
         try:
             async with aiohttp.ClientSession() as session:
                 url = urljoin(self.host, f"/api/assets/{asset_id}/thumbnail?size=preview")
@@ -113,18 +123,35 @@ class ImmichHub:
             _LOGGER.error("Error connecting to the API: %s", exception)
             raise CannotConnect from exception
 
-    async def cache_album_assets(self, hass, album_assets: list[str]) -> bool:
+    async def load_cached_asset(self, asset_id) -> bytes | None:
+        filename = os.path.join(self.asset_cache_path, f"{asset_id}")
+        if os.path.isfile(filename):
+            async with aiofiles.open(filename, "rb") as f:
+                return await f.read()
+        return None
+
+    async def cache_album_assets(self, album_assets: list[str]) -> bool:
         """Cache album assets."""
 
-        base_path = os.path.join(hass.config.path('immich_cache'), "immich_cache")
-        os.makedirs(base_path, exist_ok=True)
+        if self.cache_assets:
+            for asset_id in album_assets:
+                asset_bytes = await self.download_asset(asset_id)
+                if asset_bytes:
+                    filename = os.path.join(self.asset_cache_path, f"{asset_id}")  # Optional: content_type prüfen
+                    if not os.path.isfile(filename):
+                        async with aiofiles.open(filename, "wb") as f:
+                            await f.write(asset_bytes)
 
-        for asset_id in album_assets:
-            asset_bytes = await self.download_asset(asset_id)
-            if asset_bytes:
-                filename = os.path.join(base_path, f"{asset_id}.jpg")  # Optional: content_type prüfen
-                async with aiofiles.open(filename, "wb") as f:
-                    await f.write(asset_bytes)
+    async def initialize_asset_cache(self, hass, config_entry) -> bool:
+        self.cache_assets = config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE)
+        self.asset_cache_path = hass.config.path('immich_cache')
+        
+        shutil.rmtree(self.asset_cache_path, ignore_errors=True)
+
+        if self.cache_assets:
+            os.makedirs(self.asset_cache_path, exist_ok=True)
+        
+        return True
 
     async def list_favorite_images(self) -> list[dict]:
         """List all favorite images."""
