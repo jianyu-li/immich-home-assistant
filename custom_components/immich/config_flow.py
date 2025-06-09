@@ -28,6 +28,8 @@ from .const import (
     CROP_MODES,
     IMAGE_SELECTION_MODES,
     UPDATE_INTERVAL_UNITS,
+    CONF_CACHE_MODE,
+    DEFAULT_CACHE_MODE,
 )
 from .hub import CannotConnect, ImmichHub, InvalidAuth
 
@@ -129,6 +131,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         current_update_interval = self.config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
         current_update_interval_unit = self.config_entry.options.get(CONF_UPDATE_INTERVAL_UNIT, DEFAULT_UPDATE_INTERVAL_UNIT)
 
+        current_cache_mode = self.config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE)
+
         options_schema = vol.Schema(
             {
                 vol.Required(CONF_CROP_MODE, default=current_crop_mode): vol.In(CROP_MODES),
@@ -136,6 +140,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(CONF_UPDATE_INTERVAL, default=current_update_interval): vol.Coerce(int),
                 vol.Required(CONF_UPDATE_INTERVAL_UNIT, default=current_update_interval_unit): vol.In(UPDATE_INTERVAL_UNITS),
                 vol.Required(CONF_WATCHED_ALBUMS, default=current_albums_value): cv.multi_select(album_map),
+                vol.Required(CONF_CACHE_MODE, default=current_cache_mode): bool,
             }
         )
 

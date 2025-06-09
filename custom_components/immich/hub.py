@@ -5,6 +5,8 @@ import logging
 from urllib.parse import urljoin
 
 import aiohttp
+import aiofiles
+import os
 
 from homeassistant.exceptions import HomeAssistantError
 
@@ -109,6 +111,19 @@ class ImmichHub:
         except aiohttp.ClientError as exception:
             _LOGGER.error("Error connecting to the API: %s", exception)
             raise CannotConnect from exception
+
+    async def cache_album_assets(self, album_assets: list[str]) -> bool:
+        """Cache album assets."""
+
+        base_path = os.path.join(self.hass.config.path, "immich_cache")
+        os.makedirs(base_path, exist_ok=True)
+
+        for asset_id in album_assets:
+            asset_bytes = await self.download_asset(asset_id)
+            if asset_bytes:
+                filename = os.path.join(base_path, f"{asset_id}.jpg")  # Optional: content_type prüfen
+                async with aiofiles.open(filename, "wb") as f:
+                    await f.write(asset_bytes)
 
     async def list_favorite_images(self) -> list[dict]:
         """List all favorite images."""

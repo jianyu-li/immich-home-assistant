@@ -15,7 +15,8 @@ from .const import (
     CONF_WATCHED_ALBUMS, DOMAIN, CONF_CROP_MODE, CONF_IMAGE_SELECTION_MODE,
     CONF_UPDATE_INTERVAL, CONF_UPDATE_INTERVAL_UNIT,
     DEFAULT_CROP_MODE, DEFAULT_IMAGE_SELECTION_MODE,
-    DEFAULT_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL_UNIT
+    DEFAULT_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL_UNIT,
+    CONF_CACHE_MODE, DEFAULT_CACHE_MODE
 )
 from .hub import ImmichHub
 from .coordinator import process_images_for_slideshow
@@ -206,4 +207,9 @@ class ImmichImageAlbum(BaseImmichImage):
 
     async def _refresh_available_asset_ids(self) -> list[str] | None:
         """Refresh the list of available asset IDs."""
-        return [image["id"] for image in await self.hub.list_album_images(self._album_id)]
+        album_assets = [image["id"] for image in await self.hub.list_album_images(self._album_id)]
+
+        if self.config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE):
+            await self.hub.cache_album_assets(album_assets)
+        
+        return album_assets #[image["id"] for image in await self.hub.list_album_images(self._album_id)]

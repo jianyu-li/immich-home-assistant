@@ -22,5 +22,8 @@ DEFAULT_UPDATE_INTERVAL = 60  # in seconds
 DEFAULT_UPDATE_INTERVAL_UNIT = "seconds"
 UPDATE_INTERVAL_UNITS = ["seconds", "minutes"]
 
+CONF_CACHE_MODE = "cache_mode"
+DEFAULT_CACHE_MODE = False
+
 # Validation for update interval (min=1 second, max=24 hours)
 UPDATE_INTERVAL_VALIDATOR = vol.All(vol.Coerce(int), vol.Range(min=1, max=86400))
