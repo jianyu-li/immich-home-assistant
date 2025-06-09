@@ -30,7 +30,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Immich image platform."""
     hub = ImmichHub(
-        host=config_entry.data[CONF_HOST], api_key=config_entry.data[CONF_API_KEY]
+        host=config_entry.data[CONF_HOST], hass=hass, config_entry=config_entry, api_key=config_entry.data[CONF_API_KEY]
     )
 
     update_interval = config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)

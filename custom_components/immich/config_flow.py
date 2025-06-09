@@ -30,6 +30,9 @@ from .const import (
     UPDATE_INTERVAL_UNITS,
     CONF_CACHE_MODE,
     DEFAULT_CACHE_MODE,
+    CONF_PICTURE_TYPE,
+    DEFAULT_PICTURE_TYPE,
+    PICTURE_TYPES
 )
 from .hub import CannotConnect, ImmichHub, InvalidAuth
 
@@ -47,7 +50,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     url = url_normalize(data[CONF_HOST])
     api_key = data[CONF_API_KEY]
 
-    hub = ImmichHub(host=url, api_key=api_key)
+    hub = ImmichHub(host=url, api_key=api_key, hass=hass, config_entry=None)
 
     if not await hub.authenticate():
         raise InvalidAuth
@@ -112,7 +115,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         url = url_normalize(self.config_entry.data[CONF_HOST])
         api_key = self.config_entry.data[CONF_API_KEY]
-        hub = ImmichHub(host=url, api_key=api_key)
+        hub = ImmichHub(host=url, api_key=api_key, hass=None, config_entry=self.config_entry)
 
         if not await hub.authenticate():
             raise InvalidAuth
@@ -132,6 +135,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         current_update_interval_unit = self.config_entry.options.get(CONF_UPDATE_INTERVAL_UNIT, DEFAULT_UPDATE_INTERVAL_UNIT)
 
         current_cache_mode = self.config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE)
+        current_picture_type = self.config_entry.options.get(CONF_PICTURE_TYPE, DEFAULT_PICTURE_TYPE)
 
         options_schema = vol.Schema(
             {
@@ -140,6 +144,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 vol.Required(CONF_UPDATE_INTERVAL, default=current_update_interval): vol.Coerce(int),
                 vol.Required(CONF_UPDATE_INTERVAL_UNIT, default=current_update_interval_unit): vol.In(UPDATE_INTERVAL_UNITS),
                 vol.Required(CONF_WATCHED_ALBUMS, default=current_albums_value): cv.multi_select(album_map),
+                vol.Required(CONF_PICTURE_TYPE, default=current_picture_type): vol.In(PICTURE_TYPES),
                 vol.Required(CONF_CACHE_MODE, default=current_cache_mode): bool,
             }
         )

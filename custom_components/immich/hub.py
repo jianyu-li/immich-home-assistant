@@ -9,11 +9,13 @@ import aiofiles
 import os
 import shutil
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.core import HomeAssistant
 
 from .const import (
-    CONF_CACHE_MODE, DEFAULT_CACHE_MODE
+    CONF_CACHE_MODE, DEFAULT_CACHE_MODE,
+    CONF_PICTURE_TYPE, DEFAULT_PICTURE_TYPE
 )
 
 _HEADER_API_KEY = "x-api-key"
@@ -25,10 +27,12 @@ _ALLOWED_MIME_TYPES = ["image/png", "image/jpeg"]
 class ImmichHub:
     """Immich API hub."""
 
-    def __init__(self, host: str, api_key: str) -> None:
+    def __init__(self, host: str, api_key: str, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize."""
         self.host = host
         self.api_key = api_key
+        self.hass = hass
+        self.config_entry = config_entry
 
     async def authenticate(self) -> bool:
         """Test if we can authenticate with the host."""
@@ -102,9 +106,15 @@ class ImmichHub:
         if asset_bytes:
             return asset_bytes
         
+        picture_type = self.config_entry.options.get(CONF_PICTURE_TYPE, DEFAULT_PICTURE_TYPE)
+
         try:
             async with aiohttp.ClientSession() as session:
-                url = urljoin(self.host, f"/api/assets/{asset_id}/thumbnail?size=preview")
+                if picture_type == "thumbnail":
+                    url = urljoin(self.host, f"/api/assets/{asset_id}/thumbnail?size=preview")
+                if picture_type == "original":
+                    url = urljoin(self.host, f"/api/assets/{asset_id}/original")
+                    
                 headers = {_HEADER_API_KEY: self.api_key}
 
                 async with session.get(url=url, headers=headers) as response:
@@ -142,9 +152,9 @@ class ImmichHub:
                         async with aiofiles.open(filename, "wb") as f:
                             await f.write(asset_bytes)
 
-    def initialize_asset_cache(self, hass, config_entry) -> bool:
-        self.cache_assets = config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE)
-        self.asset_cache_path = hass.config.path('immich_cache')
+    def initialize_asset_cache(self) -> bool:
+        self.cache_assets = self.config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE)
+        self.asset_cache_path = self.hass.config.path('immich_cache')
         
         shutil.rmtree(self.asset_cache_path, ignore_errors=True)
 

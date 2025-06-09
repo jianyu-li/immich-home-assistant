@@ -22,7 +22,8 @@
       "init": {
         "data": {
           "watched_albums": "Albums for which entities will be created",
-          "cache_mode": "Cache assets locally"
+          "cache_mode": "Cache assets locally",
+          "picture_type": "The picture type to load"
         }
       }
     }
