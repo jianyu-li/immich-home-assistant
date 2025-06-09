@@ -142,7 +142,7 @@ class ImmichHub:
                         async with aiofiles.open(filename, "wb") as f:
                             await f.write(asset_bytes)
 
-    async def initialize_asset_cache(self, hass, config_entry) -> bool:
+    def initialize_asset_cache(self, hass, config_entry) -> bool:
         self.cache_assets = config_entry.options.get(CONF_CACHE_MODE, DEFAULT_CACHE_MODE)
         self.asset_cache_path = hass.config.path('immich_cache')
         
