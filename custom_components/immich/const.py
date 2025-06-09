@@ -25,9 +25,9 @@ UPDATE_INTERVAL_UNITS = ["seconds", "minutes"]
 CONF_CACHE_MODE = "cache_mode"
 DEFAULT_CACHE_MODE = False
 
-PICTURE_TYPES = ["original", "thumbnail"]
+PICTURE_TYPES = ["preview", "fullsize"]
 CONF_PICTURE_TYPE = "picture_type"
-DEFAULT_PICTURE_TYPE = "thumbnail"
+DEFAULT_PICTURE_TYPE = "preview"
 
 # Validation for update interval (min=1 second, max=24 hours)
 UPDATE_INTERVAL_VALIDATOR = vol.All(vol.Coerce(int), vol.Range(min=1, max=86400))
