@@ -1,3 +1,8 @@
+> [!WARNING]
+> **This repository is no longer maintained.**
+> 
+> Support for Immich is now included as a built-in [Home Assistant integration](https://www.home-assistant.io/integrations/immich/). Please use the official integration for all future updates and support.
+
 # Immich × Home Assistant 
 
 A fork from [immich-home-assistant](https://github.com/outadoc/immich-home-assistant) that incorporates some of the pull requests since the development is a little stale. 
