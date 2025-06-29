@@ -16,7 +16,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})
 
-    hub = ImmichHub(host=entry.data[CONF_HOST], api_key=entry.data[CONF_API_KEY])
+    hub = ImmichHub(host=entry.data[CONF_HOST], hass=hass, config_entry=entry, api_key=entry.data[CONF_API_KEY])
 
     if not await hub.authenticate():
         raise InvalidAuth

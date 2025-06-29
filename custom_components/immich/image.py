@@ -15,7 +15,8 @@ from .const import (
     CONF_WATCHED_ALBUMS, DOMAIN, CONF_CROP_MODE, CONF_IMAGE_SELECTION_MODE,
     CONF_UPDATE_INTERVAL, CONF_UPDATE_INTERVAL_UNIT,
     DEFAULT_CROP_MODE, DEFAULT_IMAGE_SELECTION_MODE,
-    DEFAULT_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL_UNIT
+    DEFAULT_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL_UNIT,
+    CONF_CACHE_MODE, DEFAULT_CACHE_MODE
 )
 from .hub import ImmichHub
 from .coordinator import process_images_for_slideshow
@@ -29,7 +30,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Immich image platform."""
     hub = ImmichHub(
-        host=config_entry.data[CONF_HOST], api_key=config_entry.data[CONF_API_KEY]
+        host=config_entry.data[CONF_HOST], hass=hass, config_entry=config_entry, api_key=config_entry.data[CONF_API_KEY]
     )
 
     update_interval = config_entry.options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL)
@@ -203,7 +204,11 @@ class ImmichImageAlbum(BaseImmichImage):
         self._album_id = album_id
         self._attr_unique_id = f"{config_entry.entry_id}_{album_id}"
         self._attr_name = f"Immich: {album_name}"
+        self.hub.initialize_asset_cache()
 
     async def _refresh_available_asset_ids(self) -> list[str] | None:
         """Refresh the list of available asset IDs."""
-        return [image["id"] for image in await self.hub.list_album_images(self._album_id)]
+        album_assets = [image["id"] for image in await self.hub.list_album_images(self._album_id)]
+        await self.hub.cache_album_assets(album_assets=album_assets)
+        
+        return album_assets #[image["id"] for image in await self.hub.list_album_images(self._album_id)]
