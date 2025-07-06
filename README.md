@@ -1,4 +1,7 @@
+> ⚠️ **This project is no longer maintained.**  
+> It contradicts a built-in integration in Home Assistant.  
 
+---
 
 # Immich × Home Assistant 
 
